@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="200" height="500">
+  <!-- 主文字 CHUNCHI -->
+  <text x="50%" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="#000000">
+    CHUNCHI
+  </text>
+  <!-- 标语 BETTER TOOLS, BETTER LIFE -->
+  <text x="50%" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#000000">
+    BETTER TOOLS,BETTER LIFE
+  </text>
+</svg>
