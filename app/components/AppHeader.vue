@@ -27,7 +27,7 @@ const isHoveringCart = ref(false);
             @mouseenter="isHoveringCart = true"
             @mouseleave="isHoveringCart = false"
           >
-            <CartTrigger />
+            <CartTrigger @click.capture.stop.prevent class="pointer-events-none select-none" />
 
             <Transition name="fade-slide">
               <div 

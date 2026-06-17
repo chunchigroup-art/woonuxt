@@ -1,18 +1,19 @@
 <script lang="ts" setup>
 // 从 useCart 中解构出底层所需方法，保持原本的响应式状态
 const { cart, toggleCart, isUpdatingCart, updateItemQuantity } = useCart()
-import { jumpToWPCheckout } from '~/composables/useCartSync'
 
+// ⚡ 修复：直接使用 Nuxt 路由进行页面跳转，与右上角的成功跳转保持一致
 const proceedToCheckout = async () => {
-  if (!cart?.contents?.nodes?.length || !import.meta.client) return
-  await jumpToWPCheckout(cart.contents.nodes)
+  if (!cart?.contents?.nodes?.length) return
+  
+  // 正常情况下跳转到本地前端的 /checkout 路由
+  // 如果你的项目是直接外链到 WordPress 后端，也可以换成直接 window.location.href = 'https://cms.chunchitools.com/checkout'
+  await navigateTo('/checkout')
 }
 
-// ⚡ 修复后的数量调节方法：正确传入字符串 key 和数字 newQty，不打包成对象
+// 数量调节方法
 const changeQuantity = async (item: any, newQty: number) => {
   if (newQty < 0 || isUpdatingCart.value) return
-  
-  // WooNuxt 核心接收参数格式：参数 1 是 String 类型的唯一 key，参数 2 是 Int 类型的数量值
   await updateItemQuantity(item.key, newQty)
 }
 </script>

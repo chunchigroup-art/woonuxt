@@ -28,11 +28,14 @@ export default defineNuxtConfig({
       // 配置GraphQL反向代理，转发至cms子域名，允许跨域携带Cookie
       '/api/graphql-proxy/**': {
         proxy: {
-          to: 'https://cms.chunchitools.com/graphql',
+          // ⚡ 优化：将代理目标精简到主域名，防止通配符拼接导致后端路径重叠
+          to: 'https://cms.chunchitools.com',
           // 透传浏览器Cookie给WordPress，关键用于同步购物车Session
           forwardHost: true,
+          // ⚡ 修复：显式指定源域名，确保后端下发的 Cookie 域名范围被精准重写，扩大到整个主域
           cookieDomainRewrite: {
-            '': '.chunchitools.com'
+            'cms.chunchitools.com': '.chunchitools.com',
+            'chunchitools.com': '.chunchitools.com'
           }
         },
         headers: {
