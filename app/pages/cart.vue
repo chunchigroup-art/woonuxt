@@ -5,7 +5,7 @@ const { cart, toggleCart, isUpdatingCart } = useCart()
 // 核心拦截点：当用户点击结算时，直接一脚油门送去 WordPress 后端
 const proceedToCheckout = () => {
   if (import.meta.client) {
-    window.location.href = 'https://cms.chunchitools.com/checkout/'
+    window.location.href = 'https://cms.chunchitools.com/checkout/?cancel_order=true&co_cart_refresh=1'
   }
 }
 </script>
