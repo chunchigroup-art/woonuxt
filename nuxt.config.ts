@@ -12,8 +12,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      // 保持合法的绝对 URL，彻底消灭所有编译时的 URL 解析错误
-      GQL_HOST: 'https://cms.chunchitools.com/graphql',
+      // 改用本地代理路径，不再直接请求外部域名，解决浏览器跨域
+      GQL_HOST: '/api/graphql-proxy',
       wordpressUrl: 'https://cms.chunchitools.com/graphql'
     }
   },
@@ -24,5 +24,21 @@ export default defineNuxtConfig({
       interval: 1000,
       failOnError: false,
     },
+    routeRules: {
+      // 配置GraphQL反向代理，转发至cms子域名，允许跨域携带Cookie
+      '/api/graphql-proxy/**': {
+        proxy: {
+          to: 'https://cms.chunchitools.com/graphql',
+          // 透传浏览器Cookie给WordPress，关键用于同步购物车Session
+          forwardHost: true,
+          cookieDomainRewrite: {
+            '': '.chunchitools.com'
+          }
+        },
+        headers: {
+          'Access-Control-Allow-Credentials': 'true',
+        }
+      }
+    }
   },
 });

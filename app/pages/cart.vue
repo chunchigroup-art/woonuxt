@@ -1,12 +1,11 @@
 <script lang="ts" setup>
-// 使用 Woonuxt 自带的购物车组合式函数
 const { cart, toggleCart, isUpdatingCart } = useCart()
+// 引入独立同步跳转方法，不触碰原生useCheckout
+import { jumpToWPCheckout } from '~/composables/useCartSync'
 
-// 核心拦截点：当用户点击结算时，直接一脚油门送去 WordPress 后端
-const proceedToCheckout = () => {
-  if (import.meta.client) {
-    window.location.href = 'https://cms.chunchitools.com/checkout/'
-  }
+const proceedToCheckout = async () => {
+  if (!cart?.contents?.nodes?.length || !import.meta.client) return
+  await jumpToWPCheckout(cart.contents.nodes)
 }
 </script>
 
