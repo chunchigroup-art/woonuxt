@@ -95,7 +95,6 @@ const findMatchingVariation = (selected: VariationSelection[]): Variation | null
   return bestMatch?.variation ?? null;
 };
 
-// Pre-select variation based on URL query params BEFORE component mounts
 const queryParams = route.query;
 
 const findVariationById = (value?: string | number | null): Variation | null => {
@@ -192,19 +191,10 @@ const reviewCount = computed(() => product.value?.reviewCount ?? 0);
 
 const selectProductInput = computed<any>(() => ({ productId: displayProduct.value?.databaseId, quantity: quantity.value })) as ComputedRef<AddToCartInput>;
 
-// ⚡ 核心修改点 1：点击按钮不走 GraphQL 加购，直接携带目标 ID 飞往后端原生结算页
+// 🔄 还原点 1：恢复正常的 GraphQL 异步加车方法
 const handleAddToCart = (): void => {
   if (!product.value) return;
-
-  // 优先获取当前选中的多规格子 ID (variation)，如果不是多规格，则拿主商品的数据库数字 ID
-  const targetId = activeVariation.value?.databaseId || product.value.databaseId;
-  if (!targetId) return;
-
-  // 拼接带有自动加购传参、采购数量的原生 Checkout 链接
-  const checkoutUrl = `https://cms.chunchitools.com/checkout/?add-to-cart=${targetId}&quantity=${quantity.value}`;
-  
-  // 轰油门，直接重定向
-  window.location.href = checkoutUrl;
+  void addToCart(selectProductInput.value, { product: product.value, variation: activeVariation.value });
 };
 
 const updateSelectedVariations = (variations: VariationAttribute[]): void => {
@@ -315,14 +305,16 @@ const stockStatus = computed(() => {
   return product.value?.stockStatus ?? StockStatusEnum.OutOfStock;
 });
 
-// ⚡ 核心修改点 2：大幅精简按钮禁用规则。走外部直连无需校验无头的“添加中状态”，保证响应速度。
+// 🔄 还原点 2：将无头的购物车 Loading 拦截校验加回来，防止高频重复点击
 const disabledAddToCart = computed(() => {
   const canPurchaseWithCurrentStock = stockStatus.value === StockStatusEnum.InStock || stockStatus.value === StockStatusEnum.OnBackorder;
+  const isInvalidType = !displayProduct.value;
+  const isCartUpdating = isOptimisticCartMode.value ? false : isUpdatingCart.value || isAddingToCart.value;
   const hasValidVariation = !isVariableProduct.value || !!activeVariation.value;
-  return !canPurchaseWithCurrentStock || !hasValidVariation;
+  return !canPurchaseWithCurrentStock || isCartUpdating || !hasValidVariation || isInvalidType;
 });
 
-const addToCartLoading = computed(() => false);
+const addToCartLoading = computed(() => (isOptimisticCartMode.value ? false : isUpdatingCart.value));
 </script>
 
 <template>
@@ -386,7 +378,7 @@ const addToCartLoading = computed(() => false);
                 aria-label="Quantity"
                 class="flex items-center justify-center w-20 gap-4 p-2 text-left bg-white border border-gray-300 rounded-lg focus:outline-none" />
               <Button class="flex-1 w-full" :disabled="disabledAddToCart" :loading="addToCartLoading" type="submit">
-                Proceed to Checkout
+                {{ $t('shop.addToCart') }}
               </Button>
             </div>
             <a
