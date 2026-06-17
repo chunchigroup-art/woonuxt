@@ -67,7 +67,7 @@ const isHoveringCart = ref(false);
                       <NuxtLink to="/cart" class="text-center bg-gray-100 text-gray-700 font-semibold text-xs py-2 rounded-lg hover:bg-gray-200 transition">
                         View Cart
                       </NuxtLink>
-                      <a href="https://cms.chunchitools.com/checkout/?cancel_order=true&co_cart_refresh=1" class="text-center bg-blue-600 text-white font-semibold text-xs py-2 rounded-lg hover:bg-blue-700 transition shadow-sm">
+                      <a href="https://cms.chunchitools.com/checkout/" class="text-center bg-blue-600 text-white font-semibold text-xs py-2 rounded-lg hover:bg-blue-700 transition shadow-sm">
                         Checkout
                       </a>
                     </div>
