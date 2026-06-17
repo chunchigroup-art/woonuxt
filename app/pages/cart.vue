@@ -1,11 +1,20 @@
 <script lang="ts" setup>
-const { cart, toggleCart, isUpdatingCart } = useCart()
-// 引入独立同步跳转方法，不触碰原生useCheckout
+// 1. 从 useCart 中额外解构出 updateItemQuantity 方法
+const { cart, toggleCart, isUpdatingCart, updateItemQuantity } = useCart()
 import { jumpToWPCheckout } from '~/composables/useCartSync'
 
 const proceedToCheckout = async () => {
   if (!cart?.contents?.nodes?.length || !import.meta.client) return
   await jumpToWPCheckout(cart.contents.nodes)
+}
+
+// 2. 封装一个更新数量的方法，防止负数，并且当数量为 0 时就是删除
+const changeQuantity = async (item: any, newQty: number) => {
+  if (newQty < 0) return
+  await updateItemQuantity({
+    key: item.key,
+    quantity: newQty
+  })
 }
 </script>
 
@@ -25,8 +34,38 @@ const proceedToCheckout = async () => {
           <div class="flex-1">
             <h3 class="font-semibold text-gray-800">{{ item.product?.node?.name }}</h3>
             <p class="text-sm text-gray-400 mt-1" v-html="item.variation?.node?.name || ''"></p>
-            <div class="flex items-center justify-between mt-2">
-              <span class="text-sm text-gray-500">Qty: {{ item.quantity }}</span>
+            
+            <div class="flex items-center justify-between mt-4">
+              <div class="flex items-center gap-4">
+                <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                  <button 
+                    @click="changeQuantity(item, item.quantity - 1)"
+                    :disabled="isUpdatingCart || item.quantity <= 1"
+                    class="px-3 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-40 transition"
+                  >
+                    -
+                  </button>
+                  <span class="px-3 py-1 text-sm font-medium text-gray-800 min-w-[24px] text-center">
+                    {{ item.quantity }}
+                  </span>
+                  <button 
+                    @click="changeQuantity(item, item.quantity + 1)"
+                    :disabled="isUpdatingCart"
+                    class="px-3 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-40 transition"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button 
+                  @click="changeQuantity(item, 0)"
+                  :disabled="isUpdatingCart"
+                  class="text-sm text-red-500 hover:text-red-700 disabled:opacity-50 transition"
+                >
+                  Delete
+                </button>
+              </div>
+
               <span class="font-bold text-gray-900" v-html="item.total"></span>
             </div>
           </div>
