@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-// 1. 从 useCart 中额外解构出 updateItemQuantity 方法
+// 从 useCart 中解构出底层所需方法，保持原本的响应式状态
 const { cart, toggleCart, isUpdatingCart, updateItemQuantity } = useCart()
 import { jumpToWPCheckout } from '~/composables/useCartSync'
 
@@ -8,13 +8,12 @@ const proceedToCheckout = async () => {
   await jumpToWPCheckout(cart.contents.nodes)
 }
 
-// 2. 封装一个更新数量的方法，防止负数，并且当数量为 0 时就是删除
+// ⚡ 修复后的数量调节方法：正确传入字符串 key 和数字 newQty，不打包成对象
 const changeQuantity = async (item: any, newQty: number) => {
-  if (newQty < 0) return
-  await updateItemQuantity({
-    key: item.key,
-    quantity: newQty
-  })
+  if (newQty < 0 || isUpdatingCart.value) return
+  
+  // WooNuxt 核心接收参数格式：参数 1 是 String 类型的唯一 key，参数 2 是 Int 类型的数量值
+  await updateItemQuantity(item.key, newQty)
 }
 </script>
 
