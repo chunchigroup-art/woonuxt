@@ -1,0 +1,45 @@
+query getCart {
+  cart {
+    ...Cart
+  }
+  customer {
+    ...Customer
+  }
+  viewer {
+    ...Viewer
+  }
+  paymentGateways {
+    nodes {
+      ...PaymentGateway
+    }
+  }
+  loginClients {
+    ...LoginClient
+  }
+}
+
+# ====================== 在这里追加 fragment Cart ======================
+fragment Cart on Cart {
+  contents {
+    nodes {
+      key
+      quantity
+      product {
+        node {
+          databaseId
+          name
+          # 新增：最小起订量（购物车页修改数量也会校验）
+          minQuantity
+        }
+      }
+      variation {
+        node {
+          databaseId
+          name
+          # 变体也加起订量（可选，更严谨）
+          minQuantity
+        }
+      }
+    }
+  }
+}

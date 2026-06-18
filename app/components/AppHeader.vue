@@ -4,6 +4,17 @@ const { cart, toggleCart, isUpdatingCart } = useCart();
 
 // 引入控制鼠标悬浮下拉菜单的状态
 const isHoveringCart = ref(false);
+
+// 👇 新增：点击 Checkout 按钮时的带 Token 安全跨域跳转逻辑
+const goToCheckout = () => {
+  if (cart.value?.checkoutUrl) {
+    // 优先使用后端通过 GraphQL 传回来的带动态安全 Token 的结账网址
+    window.location.href = cart.value.checkoutUrl;
+  } else {
+    // 降级容错方案：万一没拿到（比如刚开无痕首次加载还没加购），走默认的子域名
+    window.location.href = 'https://cms.chunchitools.com/checkout/';
+  }
+};
 </script>
 
 <template>
@@ -67,7 +78,12 @@ const isHoveringCart = ref(false);
                       <NuxtLink to="/cart" class="text-center bg-gray-100 text-gray-700 font-semibold text-xs py-2 rounded-lg hover:bg-gray-200 transition">
                         View Cart
                       </NuxtLink>
-                      <a href="https://cms.chunchitools.com/checkout/" class="text-center bg-blue-600 text-white font-semibold text-xs py-2 rounded-lg hover:bg-blue-700 transition shadow-sm">
+                      
+                      <a 
+                        href="#" 
+                        @click.prevent="goToCheckout" 
+                        class="text-center bg-blue-600 text-white font-semibold text-xs py-2 rounded-lg hover:bg-blue-700 transition shadow-sm cursor-pointer"
+                      >
                         Checkout
                       </a>
                     </div>

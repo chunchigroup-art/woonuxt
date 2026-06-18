@@ -1,0 +1,69 @@
+fragment Cart on Cart {
+  total
+  rawTotal: total(format: RAW)
+  subtotal
+  totalTax
+  discountTotal
+  rawDiscountTotal: discountTotal(format: RAW)
+  shippingTotal
+  needsShippingAddress
+  chosenShippingMethods
+  availableShippingMethods {
+    rates {
+      cost
+      id
+      label
+    }
+  }
+  appliedCoupons {
+    description
+    discountTax
+    discountAmount
+    code
+  }
+  isEmpty
+  
+  # 👉 新增 1：开启后台会话同步桥接所需的跳转 URL
+  cartUrl
+  checkoutUrl
+
+  contents(first: 100) {
+    itemCount
+    productCount
+    nodes {
+      quantity
+      key
+      product {
+        node {
+          name
+          slug
+          sku
+          databaseId
+          type
+          
+          # 👉 新增 2：产品层面的最小起订量
+          ... on SimpleProduct {
+            minQuantity
+          }
+          ... on VariableProduct {
+            minQuantity
+          }
+        }
+      }
+      variation {
+        node {
+          name
+          slug
+          price
+          stockStatus
+          databaseId
+          
+          # 👉 新增 3：变体层面的最小起订量（如果批发支持不同变体不同 MOQ）
+          ... on ProductVariation {
+            minQuantity
+          }
+        }
+      }
+    }
+  }
+}

@@ -2,13 +2,20 @@
 // 从 useCart 中解构出底层所需方法，保持原本的响应式状态
 const { cart, toggleCart, isUpdatingCart, updateItemQuantity } = useCart()
 
-// ⚡ 修复：直接使用 Nuxt 路由进行页面跳转，与右上角的成功跳转保持一致
+// ⚡ 修复：使用从 GraphQL 提取出的带 Token 安全跳转链接，100% 同步购物车数据
 const proceedToCheckout = async () => {
-  if (!cart?.contents?.nodes?.length) return
+  if (!cart.value?.contents?.nodes?.length) return
   
-  // 正常情况下跳转到本地前端的 /checkout 路由
-  // 如果你的项目是直接外链到 WordPress 后端，也可以换成直接 window.location.href = 'https://cms.chunchitools.com/checkout'
-  await navigateTo('/checkout')
+  // 打印调试，确保能拿到带 Token 的长链接
+  console.log('正在从购物车主页安全跳转至后端结账台:', cart.value?.checkoutUrl)
+  
+  if (cart.value?.checkoutUrl) {
+    // 核心：使用后端返回的带单次有效钥匙的专属安全链接跳转，打通会话
+    window.location.href = cart.value.checkoutUrl
+  } else {
+    // 降级容错方案：万一没有拿到链接，直接外链到后端默认结账页
+    window.location.href = 'https://cms.chunchitools.com/checkout/'
+  }
 }
 
 // 数量调节方法
