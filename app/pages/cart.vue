@@ -1,20 +1,42 @@
 <script lang="ts" setup>
-// 从 useCart 中解构出底层所需方法，保持原本的响应式状态
+import { useCookie } from 'nuxt/app'
 const { cart, toggleCart, isUpdatingCart, updateItemQuantity } = useCart()
 
-// ⚡ 修复：使用从 GraphQL 提取出的带 Token 安全跳转链接，100% 同步购物车数据
+// ⚡ 终极修复：使用从 GraphQL 提取出的带 Token 安全跳转链接，并完美融合 URL 传参强刷机制
 const proceedToCheckout = async () => {
   if (!cart.value?.contents?.nodes?.length) return
   
-  // 打印调试，确保能拿到带 Token 的长链接
-  console.log('正在从购物车主页安全跳转至后端结账台:', cart.value?.checkoutUrl)
+  // 1. 动态抓取本地带横杠的有效加密 Token
+  const getWooToken = () => {
+    const match = document.cookie.match(new RegExp('(^| )woocommerce-session=([^;]+)'));
+    if (match && match[2]) return match[2];
+    
+    const fallbackMatch = document.cookie.match(new RegExp('(^| )woocommerce_session=([^;]+)'));
+    return fallbackMatch ? fallbackMatch[2] : null;
+  };
+
+  const token = getWooToken();
   
+  // 2. 检查 GraphQL 是否给力地返回了专属的 checkoutUrl
   if (cart.value?.checkoutUrl) {
-    // 核心：使用后端返回的带单次有效钥匙的专属安全链接跳转，打通会话
-    window.location.href = cart.value.checkoutUrl
+    let finalUrl = cart.value.checkoutUrl;
+    
+    // 如果本地有 Token，顺手把令牌挂在 checkoutUrl 后面，防止结账页也因为 Lax 被拦截
+    if (token) {
+      const separator = finalUrl.includes('?') ? '&' : '?';
+      finalUrl = `${finalUrl}${separator}woo_sync_sess=${encodeURIComponent(token)}`;
+    }
+    
+    console.log('正在通过专属 Checkout 密钥安全跳转:', finalUrl)
+    window.location.href = finalUrl
   } else {
-    // 降级容错方案：万一没有拿到链接，直接外链到后端默认结账页
-    window.location.href = 'https://cms.chunchitools.com/checkout/'
+    // 3. 降级容错方案：如果 checkoutUrl 为空，直接利用我们第 8 部分的强刷机制切入后端
+    console.warn('未检测到 checkoutUrl，启动同域归化补丁降级方案')
+    if (token) {
+      window.location.href = `https://cms.chunchitools.com/checkout/?woo_sync_sess=${encodeURIComponent(token)}`
+    } else {
+      window.location.href = 'https://cms.chunchitools.com/checkout/'
+    }
   }
 }
 
