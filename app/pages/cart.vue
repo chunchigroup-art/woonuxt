@@ -6,32 +6,25 @@ const { cart, toggleCart, isUpdatingCart, updateItemQuantity } = useCart()
 const proceedToCheckout = async () => {
   if (!cart.value?.contents?.nodes?.length) return
   
-  // 1. 动态抓取本地带横杠的有效加密 Token
+  // 严格抓取带中划线的 Cookie
   const getWooToken = () => {
     const match = document.cookie.match(new RegExp('(^| )woocommerce-session=([^;]+)'));
     if (match && match[2]) return match[2];
-    
     const fallbackMatch = document.cookie.match(new RegExp('(^| )woocommerce_session=([^;]+)'));
     return fallbackMatch ? fallbackMatch[2] : null;
   };
 
   const token = getWooToken();
   
-  // 2. 检查 GraphQL 是否给力地返回了专属的 checkoutUrl
   if (cart.value?.checkoutUrl) {
     let finalUrl = cart.value.checkoutUrl;
-    
-    // 如果本地有 Token，顺手把令牌挂在 checkoutUrl 后面，防止结账页也因为 Lax 被拦截
     if (token) {
       const separator = finalUrl.includes('?') ? '&' : '?';
       finalUrl = `${finalUrl}${separator}woo_sync_sess=${encodeURIComponent(token)}`;
     }
-    
-    console.log('正在通过专属 Checkout 密钥安全跳转:', finalUrl)
+    console.log('正在安全跳转至结账台:', finalUrl)
     window.location.href = finalUrl
   } else {
-    // 3. 降级容错方案：如果 checkoutUrl 为空，直接利用我们第 8 部分的强刷机制切入后端
-    console.warn('未检测到 checkoutUrl，启动同域归化补丁降级方案')
     if (token) {
       window.location.href = `https://cms.chunchitools.com/checkout/?woo_sync_sess=${encodeURIComponent(token)}`
     } else {

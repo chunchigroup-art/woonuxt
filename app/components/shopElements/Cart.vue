@@ -14,15 +14,13 @@ const goToWooCart = (e: Event) => {
   e.stopPropagation()
   e.preventDefault()
   
-  console.log('正在执行工业工具同域归化安全跳转...');
+  const match = document.cookie.match(new RegExp('(^| )woocommerce-session=([^;]+)'));
+  const token = match && match[2] ? match[2] : '';
 
-  // 如果本地没拿到 token，普通跳转。拿到了，拼在 woo_sync_sess 后面带过去让后台强刷
-  if (cartToken) {
-    // 使用我们在 functions.php 第 8 部分里定义好的 woo_sync_sess 参数
-    window.location.href = `${WC_URL}/cart/?woo_sync_sess=${encodeURIComponent(cartToken)}`
+  if (token) {
+    window.location.href = `https://cms.chunchitools.com/cart/?woo_sync_sess=${encodeURIComponent(token)}`
   } else {
-    // 兜底：如果检测不到会话（比如从未加购过），直接跳往后台购物车
-    window.location.href = `${WC_URL}/cart/`
+    window.location.href = 'https://cms.chunchitools.com/cart/'
   }
 }
 </script>
