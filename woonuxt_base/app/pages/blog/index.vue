@@ -16,7 +16,7 @@ const { data: rawPosts, pending, refresh } = await useAsyncData(
   'blog-posts-universal-safe',
   async () => {
     try {
-      const response = await $fetch('/api/graphql', {
+      const response = await $fetch('https://cms.chunchitools.com/graphql', {
         method: 'POST',
         body: {
           query: `
