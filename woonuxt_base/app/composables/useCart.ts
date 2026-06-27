@@ -22,7 +22,7 @@ export function useCart() {
   // =========================================================================
   
   function getCookieOptions() {
-    if (!import.meta.client) return { path: '/', secure: true, sameSite: 'lax' as const, maxAge: 60 * 60 * 24 * 7 };
+    if (!import.meta.client) return { path: '/', secure: true, sameSite: 'none' as const, maxAge: 60 * 60 * 24 * 7 };
     
     const hostname = window.location.hostname;
     // 🌟 如果是线上子域名环境（例如 shop.chunchitools.com），强制把 domain 挂载到主域 '.chunchitools.com'
@@ -32,7 +32,7 @@ export function useCart() {
       domain: isLocal ? undefined : '.chunchitools.com', // 关键点：加点号，代表主域及所有子域共享 Cookie
       path: '/',
       secure: true, // 线上测试环境必须是 HTTPS 
-      sameSite: 'lax' as const, // 同域环境下，用 'lax' 即可，安全且不会被浏览器拦截
+      sameSite: 'none' as const, 
       maxAge: 60 * 60 * 24 * 7
     };
   }
