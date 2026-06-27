@@ -38,18 +38,26 @@ export function useCart() {
   }
 
   function syncWooSession(token?: string | null): void {
-    if (!token) return;
-    
-    // 同时挂载标准头和跨域自定义头，隔空投送暗号
-    useGqlHeaders({ 
-      'woocommerce-session': `Session ${token}`,
-      'X-Woo-Session-Token': token
-    });
+  if (!token) return;
+  
+  // 1. 注入到请求头
+  useGqlHeaders({ 
+    'woocommerce-session': `Session ${token}`,
+    'X-Woo-Session-Token': token
+  });
 
-    if (!import.meta.client) return;
-    const sessionCookie = useCookie<string | null>('woocommerce-session', getCookieOptions());
-    sessionCookie.value = token;
-  }
+  if (!import.meta.client) return;
+  
+  // 2. 框架标准写入
+  const sessionCookie = useCookie<string | null>('woocommerce-session', getCookieOptions());
+  sessionCookie.value = token;
+
+  // 3. 💡 原生暴力兜底写入：确保 Application 面板里绝对不会漏掉它！
+  const hostname = window.location.hostname;
+  const isLocal = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+  const domainStr = isLocal ? '' : '; domain=.chunchitools.com';
+  document.cookie = `woocommerce-session=${token}${domainStr}; path=/; max-age=604800; Secure; SameSite=None`;
+}
 
   function extractCartPayloadFromError(error: unknown) {
     const candidate = (error as any)?.response?.data?.data ?? (error as any)?.response?.data ?? (error as any)?.data?.data ?? (error as any)?.data ?? null;
@@ -80,20 +88,23 @@ export function useCart() {
     if (!payload) return;
     const { updateCustomer, updateViewer, updateLoginClients } = useAuth();
     
-    // 解构可能存在的数据层级
     const cartData = payload.cart ?? payload.data?.cart;
     const viewerData = payload.viewer ?? payload.data?.viewer;
     const customerData = payload.customer ?? payload.data?.customer;
     const gatewaysData = payload.paymentGateways ?? payload.data?.paymentGateways;
     const loginClientsData = payload.loginClients ?? payload.data?.loginClients;
 
-    if (cartData) cart.value = cartData;
+    // 💡 升级防御：如果当前页面刷新时后端返回的 cartData 压根没有节点（或者是 undefined/null），
+    // 且本地已经存有购物车数据，先不要盲目用空状态覆盖它，避免“刷新洗白”。
+    if (cartData) {
+      cart.value = cartData;
+    }
+    
     if (viewerData) updateViewer(viewerData);
     if (customerData) updateCustomer(customerData);
     if (gatewaysData) paymentGateways.value = gatewaysData;
     if (loginClientsData) updateLoginClients(loginClientsData.filter((c: any) => c !== null));
 
-    // 提取会话 Token
     const token = viewerData?.wooSessionToken || customerData?.sessionToken || payload.wooSessionToken;
     if (token) {
       syncWooSession(token);
@@ -103,7 +114,19 @@ export function useCart() {
   async function fetchCartSnapshot() {
     const { getAuthTokenForRequest } = useAuthTokens();
     const authToken = await getAuthTokenForRequest();
-    const requestHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : undefined;
+    
+    // 💡 核心强化：刷新页面时，直接从底层捞出当前的真实 Cookie 
+    const sessionCookie = useCookie('woocommerce-session', getCookieOptions()).value;
+    
+    const requestHeaders: Record<string, string> = {};
+    if (authToken) requestHeaders['Authorization'] = `Bearer ${authToken}`;
+    
+    // 强制塞入头信息，不依赖 Nuxt 插件加载的先手顺序
+    if (sessionCookie) {
+      requestHeaders['woocommerce-session'] = `Session ${sessionCookie}`;
+      requestHeaders['X-Woo-Session-Token'] = sessionCookie;
+    }
+    
     return await gql.getCart(undefined, requestHeaders);
   }
 
