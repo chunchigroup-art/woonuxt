@@ -148,18 +148,6 @@ export function useCart() {
     
     return await gql.getCart(undefined, requestHeaders);
   }
-    
-    const requestHeaders: Record<string, string> = {};
-    if (authToken) requestHeaders['Authorization'] = `Bearer ${authToken}`;
-    
-    // 强制把这个跨域暗号死死塞进标头里发出，保证刷新不掉线
-    if (sessionCookie) {
-      requestHeaders['woocommerce-session'] = `Session ${sessionCookie}`;
-      requestHeaders['X-Woo-Session-Token'] = sessionCookie;
-    }
-    
-    return await gql.getCart(undefined, requestHeaders);
-  }
 
   // =========================================================================
   // 2. 核心异步操作函数
