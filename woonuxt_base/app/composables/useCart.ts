@@ -124,15 +124,30 @@ export function useCart() {
     const { getAuthTokenForRequest } = useAuthTokens();
     const authToken = await getAuthTokenForRequest();
     
-    // 💡 核心强化：刷新页面时，用原生正则从 document.cookie 里最安全地提取出当前的 Token 
     let sessionCookie = null;
+    
     if (import.meta.client) {
+      // 客户端：从 document 捞取
       const match = document.cookie.match(new RegExp('(^| )woocommerce-session=([^;]+)'));
       if (match) sessionCookie = match[2];
+    } else {
+      // 💡 服务端（SSR）：必须从 Nuxt SSR 上下文中强制强捞浏览器的 Cookie
+      const ssrCookie = useCookie('woocommerce-session', getCookieOptions());
+      sessionCookie = ssrCookie.value;
     }
-    if (!sessionCookie) {
-      sessionCookie = useCookie('woocommerce-session', getCookieOptions()).value;
+
+    const requestHeaders: Record<string, string> = {};
+    if (authToken) requestHeaders['Authorization'] = `Bearer ${authToken}`;
+    
+    if (sessionCookie) {
+      requestHeaders['woocommerce-session'] = `Session ${sessionCookie}`;
+      requestHeaders['X-Woo-Session-Token'] = sessionCookie;
+      // 💡 绝杀：强制把整串 Cookie 塞进 Header，防止代理服务器拦截自定义 Header
+      requestHeaders['Cookie'] = `woocommerce-session=${sessionCookie}`;
     }
+    
+    return await gql.getCart(undefined, requestHeaders);
+  }
     
     const requestHeaders: Record<string, string> = {};
     if (authToken) requestHeaders['Authorization'] = `Bearer ${authToken}`;
