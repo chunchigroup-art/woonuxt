@@ -18,46 +18,44 @@ export function useCart() {
   const gql = useWooGraphQL();
 
   // =========================================================================
-  // 1. 使用标准 function 声明所有底层工具函数（完美利用 JS 原生提升，杜绝 Initialization 错误）
+  // 1. 底层工具函数（全原生强制改写，攻克刷新变空核心）
   // =========================================================================
   
   function getCookieOptions() {
     if (!import.meta.client) return { path: '/', secure: true, sameSite: 'none' as const, maxAge: 60 * 60 * 24 * 7 };
     
     const hostname = window.location.hostname;
-    // 🌟 如果是线上子域名环境（例如 shop.chunchitools.com），强制把 domain 挂载到主域 '.chunchitools.com'
     const isLocal = hostname.includes('localhost') || hostname.includes('127.0.0.1');
 
     return {
-      domain: isLocal ? undefined : '.chunchitools.com', // 关键点：加点号，代表主域及所有子域共享 Cookie
+      domain: isLocal ? undefined : '.chunchitools.com',
       path: '/',
-      secure: true, // 线上测试环境必须是 HTTPS 
-      sameSite: 'none' as const, 
+      secure: true, 
+      sameSite: 'none' as const, // 强制 none
       maxAge: 60 * 60 * 24 * 7
     };
   }
 
   function syncWooSession(token?: string | null): void {
-  if (!token) return;
-  
-  // 1. 注入到请求头
-  useGqlHeaders({ 
-    'woocommerce-session': `Session ${token}`,
-    'X-Woo-Session-Token': token
-  });
+    if (!token) return;
+    
+    useGqlHeaders({ 
+      'woocommerce-session': `Session ${token}`,
+      'X-Woo-Session-Token': token
+    });
 
-  if (!import.meta.client) return;
-  
-  // 2. 框架标准写入
-  const sessionCookie = useCookie<string | null>('woocommerce-session', getCookieOptions());
-  sessionCookie.value = token;
+    if (!import.meta.client) return;
+    
+    // A. 框架标准写入
+    const sessionCookie = useCookie<string | null>('woocommerce-session', getCookieOptions());
+    sessionCookie.value = token;
 
-  // 3. 💡 原生暴力兜底写入：确保 Application 面板里绝对不会漏掉它！
-  const hostname = window.location.hostname;
-  const isLocal = hostname.includes('localhost') || hostname.includes('127.0.0.1');
-  const domainStr = isLocal ? '' : '; domain=.chunchitools.com';
-  document.cookie = `woocommerce-session=${token}${domainStr}; path=/; max-age=604800; Secure; SameSite=None`;
-}
+    // B. 💡 原生 JS 暴力双轨写入：确保 Application Cookie 列表里绝对能抓到它！
+    const hostname = window.location.hostname;
+    const isLocal = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+    const domainStr = isLocal ? '' : '; domain=.chunchitools.com';
+    document.cookie = `woocommerce-session=${token}${domainStr}; path=/; max-age=604800; Secure; SameSite=None`;
+  }
 
   function extractCartPayloadFromError(error: unknown) {
     const candidate = (error as any)?.response?.data?.data ?? (error as any)?.response?.data ?? (error as any)?.data?.data ?? (error as any)?.data ?? null;
@@ -94,12 +92,8 @@ export function useCart() {
     const gatewaysData = payload.paymentGateways ?? payload.data?.paymentGateways;
     const loginClientsData = payload.loginClients ?? payload.data?.loginClients;
 
-    // 💡 升级防御：如果当前页面刷新时后端返回的 cartData 压根没有节点（或者是 undefined/null），
-    // 且本地已经存有购物车数据，先不要盲目用空状态覆盖它，避免“刷新洗白”。
-    if (cartData) {
-      cart.value = cartData;
-    }
-    
+    // 💡 升级安全兜底：如果后端偶尔返回空状态或报错空对象，不要盲目覆盖本地
+    if (cartData) cart.value = cartData;
     if (viewerData) updateViewer(viewerData);
     if (customerData) updateCustomer(customerData);
     if (gatewaysData) paymentGateways.value = gatewaysData;
@@ -115,13 +109,20 @@ export function useCart() {
     const { getAuthTokenForRequest } = useAuthTokens();
     const authToken = await getAuthTokenForRequest();
     
-    // 💡 核心强化：刷新页面时，直接从底层捞出当前的真实 Cookie 
-    const sessionCookie = useCookie('woocommerce-session', getCookieOptions()).value;
+    // 💡 核心强化：刷新页面时，用原生正则从 document.cookie 里最安全地提取出当前的 Token 
+    let sessionCookie = null;
+    if (import.meta.client) {
+      const match = document.cookie.match(new RegExp('(^| )woocommerce-session=([^;]+)'));
+      if (match) sessionCookie = match[2];
+    }
+    if (!sessionCookie) {
+      sessionCookie = useCookie('woocommerce-session', getCookieOptions()).value;
+    }
     
     const requestHeaders: Record<string, string> = {};
     if (authToken) requestHeaders['Authorization'] = `Bearer ${authToken}`;
     
-    // 强制塞入头信息，不依赖 Nuxt 插件加载的先手顺序
+    // 强制把这个跨域暗号死死塞进标头里发出，保证刷新不掉线
     if (sessionCookie) {
       requestHeaders['woocommerce-session'] = `Session ${sessionCookie}`;
       requestHeaders['X-Woo-Session-Token'] = sessionCookie;
@@ -131,11 +132,10 @@ export function useCart() {
   }
 
   // =========================================================================
-  // 2. 核心异步操作函数（已修复死循环防抖）
+  // 2. 核心异步操作函数
   // =========================================================================
   
   async function refreshCart(): Promise<boolean> {
-    // 🔒 锁机制：如果当前正在更新（或者正在加购），直接拒绝本次重复请求
     if (isUpdatingCart.value) return false; 
     isUpdatingCart.value = true;
 
@@ -151,32 +151,25 @@ export function useCart() {
       }
       return false;
     } finally {
-      isUpdatingCart.value = false; // 解锁
+      isUpdatingCart.value = false;
     }
   }
 
   async function addToCart(input: AddToCartInput, optimistic?: any): Promise<void> {
-    if (isAddingToCart.value || isUpdatingCart.value) return; // 🔒 双重防Token并发冲突
+    if (isAddingToCart.value || isUpdatingCart.value) return; 
     isAddingToCart.value = true;
-    isUpdatingCart.value = true; // 提前上锁，阻断一切外界 watch 触发的 refreshCart
+    isUpdatingCart.value = true; 
 
     const quantity = normalizeQuantity(input.quantity);
     
     try {
-      // 执行 GraphQL 加购变更
       const response: any = await gql.addToCart({ input: { ...input, quantity } });
-      
-      // 精准提取返回的最新购物车快照与 Token
       const rootData = response?.data ?? response;
       const addToCartPayload = rootData?.addToCart;
       
       if (addToCartPayload) {
         applyCartSnapshot(addToCartPayload);
       }
-      
-      // 💡 优化：其实 addToCart 接口返回的 payload 里已经包含了完整的最新购物车数据 (cartData)
-      // 如果 applyCartSnapshot 已经更新了购物车，这里不需要再进行一次多余的 refreshCart() 请求
-      // await refreshCart(); // 👈 注释掉这行，防止二次网络风暴
       
       if (storeSettings.autoOpenCart && !isShowingCart.value) {
         isShowingCart.value = true;
@@ -188,7 +181,6 @@ export function useCart() {
         applyCartSnapshot(recoveredPayload);
       }
     } finally {
-      // 延迟 300 毫秒解锁，防止前后端异步不同步导致组件瞬间再次触发请求
       setTimeout(() => {
         isAddingToCart.value = false;
         isUpdatingCart.value = false;
@@ -229,16 +221,19 @@ export function useCart() {
   }
 
   // =========================================================================
-  // 3. 客户端静默保活（严禁在此处抛出死循环重试）
+  // 3. 客户端静默保活
   // =========================================================================
   if (import.meta.client) {
-    const initSession = useCookie<string | null>('woocommerce-session', getCookieOptions());
-    if (initSession.value) {
+    let currentToken = null;
+    const match = document.cookie.match(new RegExp('(^| )woocommerce-session=([^;]+)'));
+    if (match) currentToken = match[2];
+    if (!currentToken) currentToken = useCookie<string | null>('woocommerce-session', getCookieOptions()).value;
+
+    if (currentToken) {
       useGqlHeaders({ 
-        'woocommerce-session': `Session ${initSession.value}`,
-        'X-Woo-Session-Token': initSession.value
+        'woocommerce-session': `Session ${currentToken}`,
+        'X-Woo-Session-Token': currentToken
       });
-      // 仅在本地内存完全没有购物车缓存时，才做一次平稳的静默拉取
       if (!cart.value) {
         fetchCartSnapshot()
           .then(payload => applyCartSnapshot(payload))
