@@ -108,10 +108,14 @@ export function useCart() {
   }
 
   // =========================================================================
-  // 2. 核心异步操作函数
+  // 2. 核心异步操作函数（已修复死循环防抖）
   // =========================================================================
   
   async function refreshCart(): Promise<boolean> {
+    // 🔒 锁机制：如果当前正在更新（或者正在加购），直接拒绝本次重复请求
+    if (isUpdatingCart.value) return false; 
+    isUpdatingCart.value = true;
+
     try {
       const payload = await fetchCartSnapshot();
       applyCartSnapshot(payload);
@@ -124,14 +128,14 @@ export function useCart() {
       }
       return false;
     } finally {
-      isUpdatingCart.value = false;
+      isUpdatingCart.value = false; // 解锁
     }
   }
 
   async function addToCart(input: AddToCartInput, optimistic?: any): Promise<void> {
-    if (isAddingToCart.value) return; // 防抖，防止重复点击
+    if (isAddingToCart.value || isUpdatingCart.value) return; // 🔒 双重防Token并发冲突
     isAddingToCart.value = true;
-    isUpdatingCart.value = true;
+    isUpdatingCart.value = true; // 提前上锁，阻断一切外界 watch 触发的 refreshCart
 
     const quantity = normalizeQuantity(input.quantity);
     
@@ -147,8 +151,9 @@ export function useCart() {
         applyCartSnapshot(addToCartPayload);
       }
       
-      // 全局同步一次最新状态
-      await refreshCart();
+      // 💡 优化：其实 addToCart 接口返回的 payload 里已经包含了完整的最新购物车数据 (cartData)
+      // 如果 applyCartSnapshot 已经更新了购物车，这里不需要再进行一次多余的 refreshCart() 请求
+      // await refreshCart(); // 👈 注释掉这行，防止二次网络风暴
       
       if (storeSettings.autoOpenCart && !isShowingCart.value) {
         isShowingCart.value = true;
@@ -158,11 +163,13 @@ export function useCart() {
       const recoveredPayload = extractCartPayloadFromError(error);
       if (recoveredPayload) {
         applyCartSnapshot(recoveredPayload);
-        await refreshCart();
       }
     } finally {
-      isAddingToCart.value = false;
-      isUpdatingCart.value = false;
+      // 延迟 300 毫秒解锁，防止前后端异步不同步导致组件瞬间再次触发请求
+      setTimeout(() => {
+        isAddingToCart.value = false;
+        isUpdatingCart.value = false;
+      }, 300);
     }
   }
 
