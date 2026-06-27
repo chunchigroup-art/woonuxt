@@ -18,27 +18,13 @@ export function useCart() {
   const gql = useWooGraphQL();
 
   // =========================================================================
-  // 1. 底层工具函数（全原生强制改写，攻克刷新变空核心）
+  // 1. 底层工具函数（切换为本地物理存储驱动）
   // =========================================================================
-  
-  function getCookieOptions() {
-    if (!import.meta.client) return { path: '/', secure: true, sameSite: 'none' as const, maxAge: 60 * 60 * 24 * 7 };
-    
-    const hostname = window.location.hostname;
-    const isLocal = hostname.includes('localhost') || hostname.includes('127.0.0.1');
-
-    return {
-      domain: isLocal ? undefined : '.chunchitools.com',
-      path: '/',
-      secure: true, 
-      sameSite: 'none' as const, // 强制 none
-      maxAge: 60 * 60 * 24 * 7
-    };
-  }
 
   function syncWooSession(token?: string | null): void {
     if (!token) return;
     
+    // 强制锁死全局 GraphQL 请求标头
     useGqlHeaders({ 
       'woocommerce-session': `Session ${token}`,
       'X-Woo-Session-Token': token
@@ -46,15 +32,8 @@ export function useCart() {
 
     if (!import.meta.client) return;
     
-    // A. 框架标准写入
-    const sessionCookie = useCookie<string | null>('woocommerce-session', getCookieOptions());
-    sessionCookie.value = token;
-
-    // B. 💡 原生 JS 暴力双轨写入：确保 Application Cookie 列表里绝对能抓到它！
-    const hostname = window.location.hostname;
-    const isLocal = hostname.includes('localhost') || hostname.includes('127.0.0.1');
-    const domainStr = isLocal ? '' : '; domain=.chunchitools.com';
-    document.cookie = `woocommerce-session=${token}${domainStr}; path=/; max-age=604800; Secure; SameSite=None`;
+    // 💡 核心外挂：死死写入 localStorage，绕过浏览器的 Cookie 跨域拦截大山
+    localStorage.setItem('woocommerce-session', token);
   }
 
   function extractCartPayloadFromError(error: unknown) {
@@ -92,19 +71,16 @@ export function useCart() {
     const gatewaysData = payload.paymentGateways ?? payload.data?.paymentGateways;
     const loginClientsData = payload.loginClients ?? payload.data?.loginClients;
 
-    // 💡 终极防御：如果后端返回的 cart 节点里没有商品（空车），
-    // 且本地通过 Cookie 或 localStorage 明明能证明曾经加过购（即有凭证），
-    // 绝对不允许用空状态洗掉前端内存！直接拦截！
-    let hasLocalToken = false;
-    if (import.meta.client) {
-      hasLocalToken = document.cookie.includes('woocommerce-session') || !!localStorage.getItem('woocommerce-session');
-    }
-    
     if (cartData) {
+      // 如果后端返回空，但本地明明存有 Token，说明请求还没对齐，拦截洗车
+      let hasLocalToken = false;
+      if (import.meta.client) {
+        hasLocalToken = !!localStorage.getItem('woocommerce-session');
+      }
       const hasItems = cartData.contents?.nodes?.length > 0;
       if (!hasItems && hasLocalToken && cart.value !== null) {
-        console.warn('⚠️ 拦截到一次异常的洗车行为（后端返回空，但本地存有凭证），已保护前端状态。');
-        return; // 🛑 拒绝用空状态覆盖
+        console.warn('⚠️ 拦截到一次异常的洗车行为（后端返回空，本地存有凭证），已保护前端状态。');
+        return;
       }
       cart.value = cartData;
     }
@@ -124,26 +100,18 @@ export function useCart() {
     const { getAuthTokenForRequest } = useAuthTokens();
     const authToken = await getAuthTokenForRequest();
     
-    let sessionCookie = null;
-    
+    let sessionToken = null;
     if (import.meta.client) {
-      // 客户端：从 document 捞取
-      const match = document.cookie.match(new RegExp('(^| )woocommerce-session=([^;]+)'));
-      if (match) sessionCookie = match[2];
-    } else {
-      // 💡 服务端（SSR）：必须从 Nuxt SSR 上下文中强制强捞浏览器的 Cookie
-      const ssrCookie = useCookie('woocommerce-session', getCookieOptions());
-      sessionCookie = ssrCookie.value;
+      // 优先从本地物理存储读取
+      sessionToken = localStorage.getItem('woocommerce-session');
     }
 
     const requestHeaders: Record<string, string> = {};
     if (authToken) requestHeaders['Authorization'] = `Bearer ${authToken}`;
     
-    if (sessionCookie) {
-      requestHeaders['woocommerce-session'] = `Session ${sessionCookie}`;
-      requestHeaders['X-Woo-Session-Token'] = sessionCookie;
-      // 💡 绝杀：强制把整串 Cookie 塞进 Header，防止代理服务器拦截自定义 Header
-      requestHeaders['Cookie'] = `woocommerce-session=${sessionCookie}`;
+    if (sessionToken) {
+      requestHeaders['woocommerce-session'] = `Session ${sessionToken}`;
+      requestHeaders['X-Woo-Session-Token'] = sessionToken;
     }
     
     return await gql.getCart(undefined, requestHeaders);
@@ -239,40 +207,30 @@ export function useCart() {
   }
 
   // =========================================================================
-  // 3. 客户端静默保活（终极安全改良版：杜绝初始化洗白空车）
+  // 3. 客户端静默保活（本地物理存储持久化版）
   // =========================================================================
   if (import.meta.client) {
-    let currentToken = null;
-    const match = document.cookie.match(new RegExp('(^| )woocommerce-session=([^;]+)'));
-    if (match) currentToken = match[2];
-    if (!currentToken) currentToken = useCookie<string | null>('woocommerce-session', getCookieOptions()).value;
+    const localToken = localStorage.getItem('woocommerce-session');
 
-    if (currentToken) {
-      // 1. 强行在全局标头锁死，确保后续所有组件发出的请求全部带凭证
+    if (localToken) {
       useGqlHeaders({ 
-        'woocommerce-session': `Session ${currentToken}`,
-        'X-Woo-Session-Token': currentToken
+        'woocommerce-session': `Session ${localToken}`,
+        'X-Woo-Session-Token': localToken
       });
       
-      // 2. 💡 绝杀改动：由于刚刷新时 cart.value 必然是 null，
-      // 我们加一层严密的锁：只有当正在更新锁 isUpdatingCart 为 false 时，才允许平稳拉取。
-      // 并且拉取失败或返回空时，绝对不允许直接把 cart.value 抹成 null。
       if (!cart.value && !isUpdatingCart.value) {
-        isUpdatingCart.value = true; // 提前上锁，不给其他组件并发作乱的机会
+        isUpdatingCart.value = true;
         
         fetchCartSnapshot()
           .then(payload => {
             const remoteCart = payload?.cart ?? payload?.data?.cart;
-            // 只有当后台确实返回了有意义的购物车内容（比如里面有商品节点），才去更新
             if (remoteCart && remoteCart.contents?.nodes?.length > 0) {
               applyCartSnapshot(payload);
-            } else {
-              console.log('Backend returned empty snapshot, frontend layout retained.');
             }
           })
           .catch(() => console.log('Static session heartbeat paused.'))
           .finally(() => {
-            isUpdatingCart.value = false; // 释放锁
+            isUpdatingCart.value = false;
           });
       }
     }
