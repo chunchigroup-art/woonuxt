@@ -42,8 +42,6 @@ const checkoutUrl = computed(() => {
   }
 
   // 1. 提取商品 ID 或变体 ID 数组
-  // 注意：WooNuxt 节点中通常使用 databaseId 或 product.node.databaseId。
-  // 请确保 item.product.node.databaseId（变体）或 item.databaseId 是你在后台的真实数字 ID。
   const productIds = cart.value.contents.nodes
     .map((item: any) => item.variation?.node?.databaseId || item.product?.node?.databaseId || item.databaseId)
     .filter(Boolean)
@@ -55,12 +53,22 @@ const checkoutUrl = computed(() => {
     .filter((q: any) => q !== undefined)
     .join(',');
 
-  // 3. 完美封装：直接跳转到 shop 伪装域名（如果你还没改域名，可以先用现在的 cms.chunchitools.com 或 api.chunchitools.com）
+  // 3. 完美封装：直接跳转到 shop 独立域名
   const backendBaseUrl = 'https://shop.chunchitools.com/checkout/';
   
   return `${backendBaseUrl}?add-to-cart=${productIds}&quantity=${quantities}`;
 });
-// ====================================================================================================
+
+// 🚀 强力执行一次性全量出海结算（已正确提取到 Computed 外部）
+const handleProceedToCheckout = (e: Event) => {
+  e.preventDefault(); // 拦截 a 标签默认行为
+  if (isCartMutating.value) return;
+
+  if (checkoutUrl.value) {
+    // 干净利落地一键甩到真实的 shop. 子域结算页
+    window.location.href = checkoutUrl.value;
+  }
+};
 </script>
 
 <template>
@@ -111,9 +119,10 @@ const checkoutUrl = computed(() => {
             </div>
 
             <a
-              :href="isCartMutating ? undefined : checkoutUrl"
+              href="#"
+              @click="handleProceedToCheckout"
               :class="[
-                'w-full flex items-center justify-center py-3 text-white rounded-lg font-bold transition-all text-center',
+                'w-full flex items-center justify-center py-3 text-white rounded-lg font-bold transition-all text-center cursor-pointer',
                 isCartMutating ? 'bg-blue-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700'
               ]"
             >
