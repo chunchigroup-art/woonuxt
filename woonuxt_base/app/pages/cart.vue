@@ -62,6 +62,7 @@ const checkoutUrl = computed(() => {
 // 🚀 强力执行一次性全量出海结算（已正确提取到 Computed 外部）
 const handleProceedToCheckout = (e: Event) => {
   e.preventDefault(); // 拦截 a 标签默认行为
+  e.stopPropagation(); // 🌟 新增：严格阻止事件冒泡，防止被 Nuxt 框架内部的路由拦截器抓取
   if (isCartMutating.value) return;
 
   if (checkoutUrl.value) {
