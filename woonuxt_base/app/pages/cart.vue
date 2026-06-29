@@ -35,11 +35,30 @@ watch(() => cart.value?.isEmpty, (isEmpty) => {
   }
 });
 
-// 🌟 回归纯净：依靠 Cookie 双写底层共享，跳转链接不再携带任何参数小尾巴
+// 🌟 核心：动态拼接 URL 序列，完美绕过任何跨域限制直接塞满后台结算台
 const checkoutUrl = computed(() => {
-  // 建议：如果你想让用户少走一步，可以直接跳到 '/checkout/' 促进询盘转化
-  // 如果想去原生购物车，保持 'https://chunchitools.com/cart/' 即可
-  return 'https://chunchitools.com/cart/';
+  if (!cart.value || cart.value.isEmpty || !cart.value.contents?.nodes) {
+    return 'https://shop.chunchitools.com/checkout/';
+  }
+
+  // 1. 提取商品 ID 或变体 ID 数组
+  // 注意：WooNuxt 节点中通常使用 databaseId 或 product.node.databaseId。
+  // 请确保 item.product.node.databaseId（变体）或 item.databaseId 是你在后台的真实数字 ID。
+  const productIds = cart.value.contents.nodes
+    .map((item: any) => item.variation?.node?.databaseId || item.product?.node?.databaseId || item.databaseId)
+    .filter(Boolean)
+    .join(',');
+
+  // 2. 提取对应商品的数量数组
+  const quantities = cart.value.contents.nodes
+    .map((item: any) => item.quantity)
+    .filter((q: any) => q !== undefined)
+    .join(',');
+
+  // 3. 完美封装：直接跳转到 shop 伪装域名（如果你还没改域名，可以先用现在的 cms.chunchitools.com 或 api.chunchitools.com）
+  const backendBaseUrl = 'https://shop.chunchitools.com/checkout/';
+  
+  return `${backendBaseUrl}?add-to-cart=${productIds}&quantity=${quantities}`;
 });
 // ====================================================================================================
 </script>
