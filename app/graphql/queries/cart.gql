@@ -1,0 +1,21 @@
+query{
+
+    viewer{
+
+        wooSessionToken
+
+    }
+
+    customer{
+
+        sessionToken
+
+    }
+
+    cart{
+
+        ...Cart
+
+    }
+
+}

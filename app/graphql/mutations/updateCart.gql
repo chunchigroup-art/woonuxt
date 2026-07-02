@@ -1,0 +1,43 @@
+mutation updateCart($key:ID!,$quantity:Int!){
+
+  updateItemQuantities(
+
+      input:{
+
+        items:[
+
+          {
+
+            key:$key
+
+            quantity:$quantity
+
+          }
+
+        ]
+
+      }
+
+  ){
+
+      viewer{
+
+          wooSessionToken
+
+      }
+
+      customer{
+
+          sessionToken
+
+      }
+
+      cart{
+
+          ...Cart
+
+      }
+
+  }
+
+}

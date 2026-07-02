@@ -64,6 +64,19 @@ const isDropdownOpen = ref(false)
       <li class="menu-item">
         <NuxtLink to="/products" class="menu-link">Products</NuxtLink>
       </li>
+
+      <!-- 新增 Online Shop 外部商城跳转，放在Products与Contact中间 -->
+      <li class="menu-item">
+        <a 
+          href="https://shop.chunchitools.com" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="menu-link"
+        >
+          Online Shop
+        </a>
+      </li>
+
       <li class="menu-item">
         <NuxtLink to="/contact" class="menu-link">Contact</NuxtLink>
       </li>

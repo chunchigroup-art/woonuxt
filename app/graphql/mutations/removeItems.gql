@@ -1,0 +1,33 @@
+mutation removeItems($keys:[ID]!){
+
+  removeItemsFromCart(
+
+      input:{
+
+          keys:$keys
+
+      }
+
+  ){
+
+      viewer{
+
+          wooSessionToken
+
+      }
+
+      customer{
+
+          sessionToken
+
+      }
+
+      cart{
+
+          ...Cart
+
+      }
+
+  }
+
+}

@@ -1,0 +1,7 @@
+fragment Viewer on RootQuery {
+  viewer {
+    id
+    databaseId
+    wooSessionToken
+  }
+}

@@ -1,17 +1,32 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
+  "framework": "nuxt",
+
+  "regions": [
+
+    "hnd1"
+
+  ],
+
+  "headers": [
+
     {
-      "source": "/api/graphql",
-      "destination": "https://cms.chunchitools.com/graphql"
-    },
-    {
-      "source": "/api/graphql/:path*",
-      "destination": "https://cms.chunchitools.com/graphql/:path*"
-    },
-    {
-      "source": "/((?!api/graphql).*)" ,
-      "destination": "/index.html"
+
+      "source": "/(.*)",
+
+      "headers": [
+
+        {
+
+          "key": "Cache-Control",
+
+          "value": "public,max-age=0,must-revalidate"
+
+        }
+
+      ]
+
     }
+
   ]
+
 }

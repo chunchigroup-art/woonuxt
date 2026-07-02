@@ -91,3 +91,38 @@
     @apply border-red-500 ring-2 ring-red-500/25;
   }
 }
+
+/* ===================== 新增：暂停官网购物车功能样式 ===================== */
+/* 1. 全局隐藏所有加入购物车按钮（列表/详情页通用类名） */
+.add-to-cart,
+.single_add_to_cart_button,
+.loop-add-to-cart,
+.add-to-cart-btn {
+  display: none !important;
+}
+
+/* 2. 隐藏头部购物车图标、迷你购物车弹窗、购物车页面入口链接 */
+.header-cart,
+.mini-cart,
+.cart-icon,
+.cart-page-link {
+  display: none !important;
+}
+
+/* 3. 访问购物车/结算页面时隐藏原有内容，展示跳转提示 */
+.page-cart,
+.page-checkout {
+  visibility: hidden;
+  min-height: 60vh;
+  position: relative;
+}
+.page-cart::after {
+  content: "All purchases available at Online Shop: shop.chunchitools.com";
+  display: block;
+  visibility: visible;
+  padding: 120px 24px;
+  font-size: 18px;
+  text-align: center;
+  color: #333;
+  font-weight: 500;
+}

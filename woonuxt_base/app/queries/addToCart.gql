@@ -1,7 +1,17 @@
 mutation addToCart($input: AddToCartInput!) {
   addToCart(input: $input) {
+
+    viewer {
+      wooSessionToken
+    }
+
+    customer {
+      sessionToken
+    }
+
     cart {
       ...Cart
     }
+
   }
 }

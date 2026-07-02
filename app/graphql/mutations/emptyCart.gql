@@ -1,0 +1,25 @@
+mutation{
+
+  emptyCart{
+
+      viewer{
+
+          wooSessionToken
+
+      }
+
+      customer{
+
+          sessionToken
+
+      }
+
+      cart{
+
+          ...Cart
+
+      }
+
+  }
+
+}

@@ -1,52 +1,91 @@
-import { defineNuxtConfig } from 'nuxt/config';
-import path from 'path';
-
 export default defineNuxtConfig({
-  ssr: false, 
 
   future: {
-    compatibilityVersion: 4,
+
+    compatibilityVersion: 4
+
   },
 
   extends: ['./woonuxt_base'],
 
-  components: [
-    { path: './components', pathPrefix: false }
+  devtools: {
+
+    enabled: true
+
+  },
+
+  modules: [
+
+    '@pinia/nuxt',
+
+    '@nuxt/image'
+
   ],
 
-  image: {
-    ipx: { external: false },
-    provider: 'none'
-  },
-
-  // ⚡ 全网直连：把所有可能被底层读取的端点统统锁死为绝对路径
   runtimeConfig: {
+
     public: {
-      GQL_HOST: 'https://cms.chunchitools.com/graphql',
-      graphqlUrl: 'https://cms.chunchitools.com/graphql',
-      wordpressUrl: 'https://cms.chunchitools.com', // 满足产品组件拼接要求
-      wooCheckoutUrl: 'https://cms.chunchitools.com/checkout'
+
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
+
+      wordpressUrl: process.env.NUXT_PUBLIC_WORDPRESS_URL,
+
+      shopUrl: process.env.NUXT_PUBLIC_SHOP_URL,
+
+      apiUrl: process.env.NUXT_PUBLIC_API_URL,
+
+      currency: process.env.NUXT_PUBLIC_CURRENCY,
+
+      locale: process.env.NUXT_PUBLIC_LOCALE
+
     }
+
   },
 
-  // 强控 graphql-client 插件直连
-  graphql: {
-    clients: {
-      default: {
-        host: 'https://cms.chunchitools.com/graphql',
-        options: {
-          credentials: 'include'
-        }
-      }
-    }
-  },
+  routeRules: {
 
-  // 本地开发 Vite 配置
-  vite: {
-    server: {
-      fs: {
-        allow: ['..', path.resolve(__dirname, './woonuxt_base')]
-      }
+    '/': {
+
+      isr: 3600
+
+    },
+
+    '/product/**': {
+
+      isr: 3600
+
+    },
+
+    '/product-category/**': {
+
+      isr: 3600
+
+    },
+
+    '/blog/**': {
+
+      isr: 86400
+
+    },
+
+    '/cart': {
+
+      ssr: false
+
+    },
+
+    '/checkout': {
+
+      ssr: false
+
+    },
+
+    '/my-account/**': {
+
+      ssr: false
+
     }
+
   }
-});
+
+})
